@@ -22,6 +22,20 @@ def auto_skin_weights(selected_joints, selected_meshes, max_influences=4):
             maximumInfluences=max_influences
         )
         print(f"Skinned: {mesh} → {skin_cluster}")
+
+         # Try mirroring weights (from left to right)
+        try:
+            cmds.mirrorSkinWeights(
+                mesh,
+                mirrorMode='YZ',
+                direction='leftToRight',
+                surfaceAssociation='closestPoint',
+                influenceAssociation=['name']
+            )
+            print(f"Mirrored skin weights for: {mesh}")
+        except Exception as e:
+            print(f"⚠️ Could not mirror skin weights for {mesh}: {e}")
+
         
 def build_ui():
     if cmds.window("autoSkinWin", exists=True):
