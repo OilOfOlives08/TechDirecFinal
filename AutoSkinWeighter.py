@@ -68,3 +68,13 @@ def build_ui():
 
     cmds.setParent('..')
     cmds.showWindow(window)
+
+def load_selection_to_field(field_name, multi=True):
+    selection = cmds.ls(selection=True)
+    if not selection:
+        cmds.warning("Nothing selected.")
+        return
+    if not multi and len(selection) > 1:
+        cmds.warning("Please select only one item.")
+        return
+    cmds.textFieldButtonGrp(field_name, edit=True, text=",".join(selection))
