@@ -92,3 +92,20 @@ def load_selection_to_field(field_name, multi=True):
         cmds.warning("Please select only one item.")
         return
     cmds.textFieldButtonGrp(field_name, edit=True, text=",".join(selection))
+
+def run_auto_skin():
+    joints_text = cmds.textFieldButtonGrp("jointField", query=True, text=True)
+    meshes_text = cmds.textFieldButtonGrp("meshField", query=True, text=True)
+    max_influences = cmds.intSliderGrp("influenceSlider", query=True, value=True)
+    
+    if not joints_text or not meshes_text:
+        cmds.warning("Please load joints and meshes.")
+        return
+    
+    selected_joints = joints_text.split(",")
+    selected_meshes = meshes_text.split(",")
+
+    auto_skin_weights(selected_joints, selected_meshes, max_influences)
+
+# To run:
+build_ui()
