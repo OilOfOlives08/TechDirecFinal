@@ -1,19 +1,50 @@
 import maya.cmds as cmds
 
-def should_mirror(joints):
-    return any(j.lower().startswith(('l_', 'left')) for j in joints)
+def is_left_joint(joint):
+    return joint.lower().startswith(('l_', 'left'))
+
+def is_right_joint(joint):
+    return joint.lower().startswith(('r_', 'right'))
+
+def get_mirror_direction(joints):
+    if any(is_left_joint(j) for j in joints):
+        return 'leftToRight'
+    elif any(is_right_joint(j) for j in joints):
+        return 'rightToLeft'
+    return None
+
+def is_valid_mesh(obj):
+    return cmds.objectType(obj) == 'transform' and cmds.listRelatives(obj, shapes=True, type='mesh') is not None
+
+def is_valid_joint(obj):
+    return cmds.objectType(obj) == 'joint'
 
 def auto_skin_weights(selected_joints, selected_meshes, max_influences=4):
     if not selected_joints or not selected_meshes:
         cmds.warning("Please select at least one joint and one or more meshes.")
         return
 
+    selected_joints = [j for j in selected_joints if is_valid_joint(j)]
+    selected_meshes = [m for m in selected_meshes if is_valid_mesh(m)]
+
+    if not selected_joints or not selected_meshes:
+        cmds.warning("Invalid joint(s) or mesh(es) selected.")
+        return
+
+    mirror_direction = get_mirror_direction(selected_joints)
+
     cmds.undoInfo(openChunk=True)
     try:
         for mesh in selected_meshes:
-            # Delete old skinCluster if it exists
             existing_skin = cmds.ls(cmds.listHistory(mesh), type='skinCluster')
             if existing_skin:
+                result = cmds.confirmDialog(
+                    title="Replace SkinCluster?",
+                    message=f"{mesh} already has a skinCluster. Delete and replace?",
+                    button=["Yes", "No"], defaultButton="Yes", cancelButton="No", dismissString="No"
+                )
+                if result == "No":
+                    continue
                 cmds.delete(existing_skin)
 
             skin_cluster = cmds.skinCluster(
@@ -21,19 +52,19 @@ def auto_skin_weights(selected_joints, selected_meshes, max_influences=4):
                 mesh,
                 toSelectedBones=True,
                 normalizeWeights=1,
-                bindMethod=0,  # Closest Distance
-                skinMethod=0,  # Classic Linear
+                bindMethod=0,
+                skinMethod=0,
                 dropoffRate=4.0,
                 maximumInfluences=max_influences
             )
             cmds.inViewMessage(amg=f"<hl>Skinned:</hl> {mesh}", pos='midCenter', fade=True)
 
-            if should_mirror(selected_joints):
+            if mirror_direction:
                 try:
                     cmds.mirrorSkinWeights(
                         mesh,
                         mirrorMode='YZ',
-                        direction='leftToRight',
+                        direction=mirror_direction,
                         surfaceAssociation='closestPoint',
                         influenceAssociation=['name']
                     )
@@ -42,7 +73,6 @@ def auto_skin_weights(selected_joints, selected_meshes, max_influences=4):
                     cmds.warning(f"Could not mirror skin weights for {mesh}: {e}")
             else:
                 cmds.inViewMessage(amg=f"<hl>Skipped mirroring for:</hl> {mesh}", pos='midCenter', fade=True)
-
     finally:
         cmds.undoInfo(closeChunk=True)
 
@@ -92,7 +122,7 @@ def build_ui():
     cmds.setParent('..')
     cmds.showWindow(window)
 
-    # Pre-fill selection fields on launch
+    # Pre-fill selection fields
     load_selection_to_field("jointField", multi=True)
     load_selection_to_field("meshField", multi=True)
 
